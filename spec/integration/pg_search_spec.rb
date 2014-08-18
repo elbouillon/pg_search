@@ -1130,16 +1130,22 @@ describe "an Active Record model which includes PgSearch" do
       before :all do
         class ASubclassModel < SuperclassModel
         end
+
+        class ASearchableSubclassModel < SuperclassModel
+          include PgSearch
+          multisearchable against: :content
+        end
       end
 
       it "doesn't index subclass as superclass on create" do
         ASubclassModel.create!(:content => "foo bar")
         ASubclassModel.create!(:content => "baz")
+        ASearchableSubclassModel.create!(:content => "baz")
         SuperclassModel.create!(:content => "foo bar")
         SuperclassModel.create!(:content => "baz")
         SuperclassModel.create!(:content => "baz2")
 
-        expect(SuperclassModel.count).to be 5
+        expect(SuperclassModel.count).to be 6
         expect(ASubclassModel.count).to be 2
 
         expect(PgSearch::Document.where(searchable_type: "SuperclassModel").count).to be 3
@@ -1147,13 +1153,14 @@ describe "an Active Record model which includes PgSearch" do
       end
 
       it "can reindex and still doesn't index subclass as superclass" do
-        expect(SuperclassModel.count).to be 5
+        expect(SuperclassModel.count).to be 6
         expect(ASubclassModel.count).to be 2
 
-        PgSearch::Multisearch.rebuild(SuperclassModel, ASubclassModel)
+        PgSearch::Multisearch.rebuild(SuperclassModel, ASearchableSubclassModel)
 
         expect(PgSearch::Document.where(searchable_type: "SuperclassModel").count).to be 3
-        expect(PgSearch::Document.where(searchable_type: "ASubclassModel").count).to be 2
+        expect(PgSearch::Document.where(searchable_type: "ASubclassModel").count).to be 0
+        expect(PgSearch::Document.where(searchable_type: "ASearchableSubclassModel").count).to be 1
       end
     end
   end
